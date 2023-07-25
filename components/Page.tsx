@@ -25,7 +25,7 @@ export const Page: React.FC<PageProps> = ({
     ? onlyText(description)
     : siteConfig.siteDescription;
   const metaThumbnail = thumbnail ? thumbnail : siteConfig.siteThumbnail;
-  const customTitle = `${metaTitle} - ${siteConfig.siteName}`;
+  const customTitle = `${metaTitle} | ${siteConfig.siteName}`;
   return (
     <>
       <Head>
