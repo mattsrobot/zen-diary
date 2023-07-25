@@ -21,7 +21,7 @@ const Home: NextPage<HomeProps> = ({ posts }) => {
               Hey, welcome to the zenshop developer diary.
             </p>
             <p>
-              I'm Matt, I&apos;m bootstrapping this project as a solo founder, here I'm sharing my thoughts, challenges, struggles, everything!
+              I'm Matt, I&apos;m bootstrapping this project as a solo founder, here I&apos;m sharing my thoughts, challenges, struggles, everything!
             </p>
           </>
         }
