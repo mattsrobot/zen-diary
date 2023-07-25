@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { Command, Sun, Moon, Code } from "react-feather";
+import { Settings, Sun, Moon, Code } from "react-feather";
 import { cx } from "@/lib/utils";
 
 const THEME_MAP: { [key: string]: { label: string; icon: React.ReactNode } } = {
   system: {
     label: "System",
-    icon: <Command width=".9em" />,
+    icon: <Settings width=".9em" />,
   },
   light: {
     label: "Light",

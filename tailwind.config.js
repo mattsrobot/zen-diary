@@ -8,8 +8,13 @@ module.exports = {
   ],
   theme: {
     extend: {
+      colors: {
+        'material-light': 'rgb(246, 248, 250)',
+        'material-dark': 'rgb(0, 0, 0)',
+        'accent': 'rgb(0, 124, 255)',
+      },
       fontFamily: {
-        sans: ["Inter var", ...defaultTheme.fontFamily.sans],
+        sans: ["Mona Sans", ...defaultTheme.fontFamily.sans],
       },
     },
   },

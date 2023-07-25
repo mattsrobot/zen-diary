@@ -14,15 +14,14 @@ const Home: NextPage<HomeProps> = ({ posts }) => {
   return (
     <>
       <Page
-        title="Next.js MDX Blog Theme"
+        title="Developer diary for zenshop"
         description={
           <>
             <p>
-              View the source code on{" "}
-              <a href="https://github.com/alexcarpenter/nextjs-mdx-blog-theme">
-                Github
-              </a>
-              .
+              Hey, welcome to the zenshop developer diary.
+            </p>
+            <p>
+              I'm Matt, I'm bootstrapping this project as a solo founder, here I'm sharing my thoughts, challenges, struggles, everything!
             </p>
           </>
         }
@@ -32,7 +31,7 @@ const Home: NextPage<HomeProps> = ({ posts }) => {
           <Link
             passHref
             href="/posts"
-            className="group inline-flex items-center gap-2 text-pink-600"
+            className="group inline-flex items-center gap-2 text-accent"
           >
             View more posts{" "}
             <ArrowRight

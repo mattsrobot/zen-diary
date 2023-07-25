@@ -6,9 +6,8 @@ export type SiteConfig = {
   siteThumbnail: string;
   nav: Array<{ label: string; href: string }>;
   social?: {
-    github?: string;
     twitter?: string;
-    linkedin?: string;
+    youtube?: string;
     instagram?: string;
   };
 };
