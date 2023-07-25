@@ -21,8 +21,8 @@ class MyDocument extends Document {
         >
           <Main />
           <NextScript />
-          <Script async src="https://helpdesk.zenshop.app/bundle.js?helpdeskId=kHyvy8MMAXxqFDfdED85AgEds-PYvGZZozh062MeyFO5VR0H5A==" />
         </body>
+        <Script async src="https://helpdesk.zenshop.app/bundle.js?helpdeskId=kHyvy8MMAXxqFDfdED85AgEds-PYvGZZozh062MeyFO5VR0H5A==" />
       </Html>
     );
   }
