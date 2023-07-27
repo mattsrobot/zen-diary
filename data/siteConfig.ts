@@ -8,7 +8,7 @@ const siteConfig: SiteConfig = {
   siteThumbnail: "https://www.zenshop.app/images/landing/twitter-card.png",
   nav: [
     { label: "Posts", href: "/posts" },
-    { label: "About", href: "https://www.zenshop.app/about" },
+    { label: "About", href: "https://www.zenshop.app" },
   ],
   social: {
     youtube: "https://www.youtube.com/channel/UCNSNRGSutFKcB9L-2AFabdA",
