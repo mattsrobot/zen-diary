@@ -8,9 +8,16 @@ tags: ['rails', 'graphql', 'performance']
 
 # Avoiding GraphQL N+1 problems by using preloading
 
-Behind the scenes at zenshop is a very powerful [GraphQL api](https://graphql.pro) using graphql-ruby (which if you didn't know - is amazing).
+Behind the scenes at zenshop is a very powerful [GraphQL api](https://graphql.pro) using ```graphql-ruby``` (which if you didn't know - is seriously amazing).
 
-*Our new icon*
+zenshop has alot of data, ```Customers, Orders, Conversations, Messages, Events...```, really the list goes on. You can imagine there's plenty of opportunity for N+1 problems.
+
+*zenshop conversations*
+<a href="/images/preloading-to-avoid-n-plus-one/conversations.png">
+  <Image src="/images/preloading-to-avoid-n-plus-one/conversations.png" width={540} height={360} alt="zenshop conversations" />
+</a>
+
+*zenshop orders*
 <a href="/images/preloading-to-avoid-n-plus-one/orders.png">
   <Image src="/images/preloading-to-avoid-n-plus-one/orders.png" width={540} height={360} alt="zenshop orders" />
 </a>
