@@ -15,16 +15,56 @@ Really the list goes on, so you can imagine there's plenty of opportunity for N+
 There's essentially three main screens in zenshop I wanted to optimise to be faster:
 
 - Conversations
-- Orders
 - Customers
+- Orders
 
 Each screen had unique challenges for me due to the way the data was structured.
 
 ## Recap, what's an N+1 problem?
 
-So what the heck is an N+1 problem anyway? It was new to me too, so don't feel bad if you didn't know. Lets say you fetch a bunch of Orders, which belong to a Customer, and you want to print out the name of the customer for each order you have.
+So what the heck is an N+1 problem anyway?
+
+It was new to me too, so don't feel bad if you didn't know.
+
+Lets say you fetch a bunch of orders, which belong to a customer, and you want to print out the name of the customer for each order you have.
+
+```ruby
+orders = Order.all
+
+orders.each do |order|
+  puts "Fetched order #{order.name} by #{order.customer.name}"
+end
+```
+
+Simple right?
+
+Actually, this is an N+1 problem.
+
+You fetched the orders efficiently, but each time you print out that customer name, you're introducing the N+1 problem.
+
+You can see it more clearly when you try this in the Rails console, but first, enable this magic:
+
+```ruby
+ActiveRecord::Base.logger = Logger.new(STDOUT)
+```
+
+This will show you the database loads when something is happening.
+
+What you'll notice is every time that loop happens, a customer load is called. This happens N+1 times, hence the name, N+1 problem!
+
+In Rails the solution for this is to preload the customer association:
+
+```ruby
+orders = Order.preload(:customers).all
+```
+
+Ok great, if the solution is to preload everything, is there much more to talk about?
+
+*A little...more...complex*
 
 ## Optimising conversations
+
+So here's our beautiful zenshop...
 
 *zenshop conversations*
 <a href="/images/preloading-to-avoid-n-plus-one/conversations.png">
@@ -37,16 +77,190 @@ Events can be either a ```Message```, ```Note``` or ```Activity```. When a user 
 
 The conversation screen was actually the most challenging one for me to find solutions for, because ```delegated_type``` is a newer feature of Rails, but actually of course, like most things in Rails, the solution is beautifully simple.
 
+*Fetching a single conversation (the conversation timeline)*
+
+```ruby
+conversation = Conversation
+                .where(id: id, org: org)
+                .preload({ events: { eventable: %i[org sender] } },
+                         { mentioned_orders: { orderable: [:org] } },
+                         { customer: [:org, { fields: :org, latest_order: { orderable: :org } }] })
+                .first
+```
+*Fetching many conversations (the conversation list)*
+
+```ruby
+conversation = Conversation
+                .preload({ mentioned_orders: { orderable: [:org] } })
+                .includes({ customer: [:org, { fields: :org }] })
+                .where(org: org, customer: { id: customer_id })
+                .limit(100)
+```
+
+So conversations in zenshop are a little more complex than our earlier example, as you can see my query is a bit different.
+
+There's ```preload```, but there's also ```includes```, why is that?
+
+```includes``` does a similar thing to ```preload```, it's going to solve that N+1 problem for you, but it'll also allow you to query the data with the table you're including (in zenshops case, I could add something like:
+
+```ruby
+.where(customer: { id: 1 })
+```
+
+However, if I did this for polymorphic types you'll get the following error:
+
+```ruby
+ActiveRecord::EagerLoadPolymorphicError
+```
+
+If you get an ```ActiveRecord::EagerLoadPolymorphicError```, it's because includes decided to call ```eager_load``` when polymorphic associations are only supported by preload.
+
+It's in the documentation [here](http://api.rubyonrails.org/v5.1/classes/ActiveRecord/EagerLoadPolymorphicError.html)
+
+So always use preload for polymorphic associations.
+
+There is one caveat for this: you cannot query the polymorphic assocition in where clauses (which makes sense, since the polymorphic association represents multiple tables.)
+
+## Handling nested polymorphic associations
+
+The conversation timeline, as mentioned, has many events in the timeline.
+
+Any event could be a message, and each message have a sender. Senders can be either a customer or a user.
+
+So you see, the timeline has more going on here. How can I preload all this data?
+
+```ruby
+.preload({ events: { eventable: %i[org sender] } }
+```
+
+This line does the trick, it will load the sender, and it handles for situations when the sender doesn't exist on the table.
+
+What does the SQL look like?
+
+*My N+1 test for the query, just trying to preload events, messages and senders*
+
+```ruby
+conversation = Conversation.preload({ events: { eventable: %i[org sender] } }).find(1)
+
+conversation.events.map(&:eventable).map { |s| s.respond_to?(:sender) ? s.sender : s.id }
+```
+
+```bash
+Conversation Load (9.8ms)  SELECT `conversations`.* FROM `conversations` WHERE `conversations`.`id` = 1 LIMIT 1
+Event Load (0.6ms)  SELECT `events`.* FROM `events` WHERE `events`.`conversation_id` = 1
+Activity Load (0.6ms)  SELECT `activities`.* FROM `activities` WHERE `activities`.`id` IN (1, 5, 6, 23, 24)
+Message Load (0.8ms)  SELECT `messages`.* FROM `messages` WHERE `messages`.`id` IN (1, 2, 4, 13, 14, 15, 16)
+Org Load (1.1ms)  SELECT `orgs`.* FROM `orgs` WHERE `orgs`.`id` = 1
+Org Load (0.7ms)  SELECT `orgs`.* FROM `orgs` WHERE `orgs`.`id` = 1
+Customer Load (0.6ms)  SELECT `customers`.* FROM `customers` WHERE `customers`.`id` = 1
+User Load (2.4ms)  SELECT `users`.* FROM `users` WHERE `users`.`id` = 1
+
+ =>
+[1,
+ #<Customer:0x000000010cba7590>,
+ nil,
+ nil,
+ 5,
+ 6,
+ nil,
+ nil,
+ nil,
+ nil,
+ 23,
+ 24]
+```
+
+vs (bad query), just preloading the events.
+
+```ruby
+conversation = Conversation.preload({ events:  :eventable  }).find(1)
+
+conversation.events.map(&:eventable).map { |s| s.respond_to?(:sender) ? s.sender : s.id }
+```
+
+```bash
+Conversation Load (1.9ms)  SELECT `conversations`.* FROM `conversations` WHERE `conversations`.`id` = 1 LIMIT 1
+Event Load (4.9ms)  SELECT `events`.* FROM `events` WHERE `events`.`conversation_id` = 1
+Activity Load (0.5ms)  SELECT `activities`.* FROM `activities` WHERE `activities`.`id` IN (1, 5, 6, 23, 24)
+Message Load (0.4ms)  SELECT `messages`.* FROM `messages` WHERE `messages`.`id` IN (1, 2, 4, 13, 14, 15, 16)
+
+Customer Load (0.8ms)  SELECT `customers`.* FROM `customers` WHERE `customers`.`id` = 1 LIMIT 1
+User Load (0.3ms)  SELECT `users`.* FROM `users` WHERE `users`.`id` = 1 LIMIT 1
+User Load (0.2ms)  SELECT `users`.* FROM `users` WHERE `users`.`id` = 1 LIMIT 1
+User Load (0.3ms)  SELECT `users`.* FROM `users` WHERE `users`.`id` = 1 LIMIT 1
+User Load (0.2ms)  SELECT `users`.* FROM `users` WHERE `users`.`id` = 1 LIMIT 1
+User Load (0.2ms)  SELECT `users`.* FROM `users` WHERE `users`.`id` = 1 LIMIT 1
+User Load (0.2ms)  SELECT `users`.* FROM `users` WHERE `users`.`id` = 1 LIMIT 1
+
+ =>
+[1,
+ #<Customer:0x000000010cba7590>,
+ nil,
+ nil,
+ 5,
+ 6,
+ nil,
+ nil,
+ nil,
+ nil,
+ 23,
+ 24]
+
+```
+You can see the addtional loads really slow down the query, especially if you have a longer time line.
+
+## Optimising customers
+
+So the next screen, customers.
+
+Also difficult because customers have an field, ```latest_order``` in the GraphQL API.
+
+Customers can have many orders, but we're interested in showing their latest one.
+
+In this table, we want to quickly load all the customers, but also show their latest order, without N+1 problems.
+
+*zenshop customers (in light mode!)*
+<a href="/images/preloading-to-avoid-n-plus-one/customers.png">
+  <Image src="/images/preloading-to-avoid-n-plus-one/customers.png" width={540} height={360} alt="zenshop customers" />
+</a>
+
+My previous attempt was simply to call ```orders.last``` to get the latest order, obviously this was causing N+1 problems.
+
+The solution was to modify the models a bit:
+
+```ruby
+class Customer < ApplicationRecord
+  has_many :orders
+  has_one :latest_order, -> { latest_order_per_customers }, class_name: 'Order'
+end
+
+class Order < ApplicationRecord
+  belongs_to :customer, optional: true, counter_cache: true
+
+  def self.latest_order_per_customers
+    latest_orders_ids = select("max(id)").group(:customer_id)
+    where(id: latest_orders_ids)
+  end
+end
+```
+
+Here were the modifications I made to the customer and order model, to quickly fetch the latest order I needed to create an association called ```latest_order``` which I could pass into the ```preload```.
+
 ## Optimising orders
+
+Orders was probably the simplest one to do, I simply needed to preload the customer, nothing exciting here.
 
 *zenshop orders*
 <a href="/images/preloading-to-avoid-n-plus-one/orders.png">
   <Image src="/images/preloading-to-avoid-n-plus-one/orders.png" width={540} height={360} alt="zenshop orders" />
 </a>
 
-## Optimising customers
+## Summary
 
-*zenshop customers (in light mode!)*
-<a href="/images/preloading-to-avoid-n-plus-one/customers.png">
-  <Image src="/images/preloading-to-avoid-n-plus-one/customers.png" width={540} height={360} alt="zenshop customers" />
-</a>
+In summary I'm really happy to start focusing more now on performance gains.
+
+I have more plans, which I begin work on in August,
+
+- Global deployment with Railway.app regions, so the web process is at the 'edge'.
+- Using Planetscale database in multiple regions.
+- Using a Redis cache in multiple regions with Upstash.
