@@ -55,7 +55,7 @@ What you'll notice is every time that loop happens, a customer load is called. T
 In Rails the solution for this is to preload the customer association:
 
 ```ruby
-orders = Order.preload(:customers).all
+orders = Order.preload(:customer).all
 ```
 
 Ok great, if the solution is to preload everything, is there much more to talk about?
