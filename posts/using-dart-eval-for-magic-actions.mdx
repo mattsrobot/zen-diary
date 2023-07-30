@@ -1,0 +1,214 @@
+---
+title: "Using dart_eval for Magic Actions"
+description: "Making zenshop scriptable with the power of Dart"
+date: "2023-07-30"
+tags: ['flutter', 'dart-eval', 'magic-actions']
+---
+
+I've been using [dart_eval](https://pub.dev/packages/dart_eval) to enable Magic Actions for zenshop, I wanted to share how it was made possible.
+
+Firstly, what is ``dart_eval``?
+
+It's a way to compile and execute ``Dart`` code within your ``Dart`` application at runtime.
+
+It features a powerful ``Bridge`` between your app and your scripts - it can even modify your applictation code.
+
+What is a ``Magic Action``?
+
+A ``Magic Action`` is a way for zenshop customers to add new functionality for their specific needs. I intend to expand the functionality of ``Magic Actions`` as a long-term goal for zenshop, including client-side enhancements (as described here), as well as cloud functionality - potentially using [Firecracker](https://firecracker-microvm.github.io).
+
+## What we're going to build
+
+The goals for this first release of Magic Actions.
+
+- Select a bunch of conversations, customers, orders.
+- Define a bunch of scripts at runtime in the app.
+- Execute any desired script with the selected data.
+
+*zenshop - selecting conversations*
+<a href="/images/dart-eval/magic-actions.png">
+  <Image src="/images/dart-eval/magic-actions.png" width={540} height={360} alt="zenshop magic actions" />
+</a>
+
+*zenshop - selecting a Magic Action*
+<a href="/images/dart-eval/execute-dart.png">
+  <Image src="/images/dart-eval/execute-dart.png" width={540} height={360} alt="zenshop running a magic action" />
+</a>
+
+## Building a very simple script
+
+So first, you need to grab [dart_eval](https://pub.dev/packages/dart_eval) if you want to get started yourself.
+
+I looked at the provided example and then quickly realised the amount of boilerplate code required for this meant that the tests were a better place to understand how to put something together.
+
+Luckily the test cases are really good in this package.
+
+Here's how we start, I'm going to use a queue to process 'scripts' one-by-one, in the app.
+
+The ``ZenshopApi`` has a static method, that contains our script, the selected id for a conversation is passed into the script.
+
+```dart
+for (var id in selectedIds) {
+    appQueue.add(
+        () => Future(
+            () => ZenshopApi.executeResolveConversationById(id, true),
+        ),
+    );
+}
+```
+
+Building a queue is easy enough, especially with [queue](https://pub.dev/packages/queue) and [get](https://pub.dev/packages/get).
+
+Here's what our script looks like:
+
+```dart
+class ZenshopApi {
+
+  static executeResolveConversationById(String id, bool resolved) {
+    final compiler = Compiler();
+    compiler.defineBridgeClasses([$ZenshopApi.$declaration]);
+
+    final program = compiler.compile({
+      'resolve_conversation': {
+        'main.dart': '''
+        import 'package:zenshop_lib/zenshop_lib.dart';
+
+        bool main() {
+          final api = ZenshopApi();
+          return api.resolveConversationById("$id", $resolved);
+        }
+      '''
+      }
+    });
+
+    final runtime = Runtime.ofProgram(program);
+
+    runtime.registerBridgeFunc(
+      'package:zenshop_lib/zenshop_lib.dart',
+      'ZenshopApi.',
+      $ZenshopApi.$construct,
+      isBridge: true,
+    );
+
+    runtime.setup();
+    runtime.executeLib('package:resolve_conversation/main.dart', 'main');
+  }
+
+  bool resolveConversationById(String id, bool resolved) {
+    final GraphQLClient client = Get.find();
+    client.mutate$ResolveConversation(
+      Options$Mutation$ResolveConversation(
+        variables: Variables$Mutation$ResolveConversation(
+          input: Input$ResolveConversationMutationInput(
+            id: id,
+            resolved: resolved,
+          ),
+        ),
+      ),
+    );
+
+    return true;
+  }
+}
+```
+
+So, clearly quite a bit of code here.
+
+I expect in the near future, Magic Actions will have a defined API that customers can use.
+
+Here's what I'm aiming for, I'll expose the script engine so users can upload their own Dart, in something like this:
+
+```dart
+import 'package:zenshop_lib/zenshop_lib.dart';
+
+bool runMagicAction(String conversationId) async {
+    final api = ZenshopApi();
+    await api.resolveConversationById(conversationId, true);
+    return true;
+}
+```
+
+The only trouble with ``dart_eval`` is the sheer amount of boilerplate needed to do even simple things.
+
+```dart
+class $ZenshopApi extends ZenshopApi with $Bridge {
+  $ZenshopApi : super;
+
+  static $ZenshopApi $construct(Runtime runtime, $Value? target, List<$Value?> args) {
+    return $ZenshopApi(args[0]!.$value);
+  }
+
+  static const $type = BridgeTypeRef(BridgeTypeSpec('package:zenshop_lib/zenshop_lib.dart', 'ZenshopApi'));
+
+  static const $declaration = BridgeClassDef(BridgeClassType($type),
+      constructors: {
+        '': BridgeConstructorDef(BridgeFunctionDef(returns: BridgeTypeAnnotation($type), params: [], namedParams: []))
+      },
+      methods: {
+        'resolveConversationById': BridgeMethodDef(
+          BridgeFunctionDef(
+            returns: BridgeTypeAnnotation(
+              BridgeTypeRef.type(
+                RuntimeTypes.boolType,
+              ),
+            ),
+            params: [
+              BridgeParameter(
+                'id',
+                BridgeTypeAnnotation(
+                  BridgeTypeRef.type(RuntimeTypes.stringType),
+                ),
+                false,
+              ),
+              BridgeParameter(
+                'resolved',
+                BridgeTypeAnnotation(
+                  BridgeTypeRef.type(RuntimeTypes.boolType),
+                ),
+                false,
+              ),
+            ],
+          ),
+        )
+      },
+      getters: {},
+      setters: {},
+      fields: {},
+      bridge: true);
+
+  @override
+  $Value? $bridgeGet(String identifier) {
+    switch (identifier) {
+      case 'resolveConversationById':
+        return $Function((Runtime rt, $Value? target, List<$Value?> args) {
+          return $bool(
+            super.resolveConversationById(
+              args[0]!.$value,
+              args[1]!.$value,
+            ),
+          );
+        });
+    }
+    throw UnimplementedError();
+  }
+
+  @override
+  void $bridgeSet(String identifier, $Value value) {
+    switch (identifier) {
+      default:
+        throw UnimplementedError();
+    }
+  }
+
+  @override
+  bool resolveConversationById(String id, bool resolved) {
+    return $_invoke('resolveConversationById', [$String(id), $bool(resolved)]);
+  }
+}
+```
+
+## Summary
+
+``Dart`` is a powerful, dynamic language that can do some really interesting things.
+
+I look forward to exposing the Magic Actions API to customers in the next update.
