@@ -5,7 +5,8 @@ const siteConfig: SiteConfig = {
   siteName: "zenshop",
   siteDescription:
     "Developer diary | zenshop",
-  siteThumbnail: "https://www.zenshop.app/images/landing/twitter-card.png",
+  siteThumbnail: "https://www.zenshop.app/images/landing/facebook-card.png",
+  twitterCard: "https://www.zenshop.app/images/landing/twitter-card.png",
   nav: [
     { label: "Posts", href: "/posts" },
     { label: "About", href: "https://www.zenshop.app" },

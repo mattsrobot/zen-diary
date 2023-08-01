@@ -3,6 +3,7 @@ export type SiteConfig = {
   siteUrl: string;
   siteName: string;
   siteDescription: string;
+  twitterCard: string;
   siteThumbnail: string;
   nav: Array<{ label: string; href: string }>;
   social?: {

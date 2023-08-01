@@ -56,7 +56,7 @@ export const Page: React.FC<PageProps> = ({
         />
         <meta
           property="twitter:image"
-          content={metaThumbnail}
+          content={siteConfig.twitterCard}
         />
         <meta
           property="fb:pages"
