@@ -58,6 +58,10 @@ export const Page: React.FC<PageProps> = ({
           property="twitter:image"
           content={metaThumbnail}
         />
+        <meta
+          property="fb:pages"
+          content="100064180655586"
+        />
       </Head>
       <header
         className={cx(
