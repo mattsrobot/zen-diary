@@ -38,6 +38,26 @@ export const Page: React.FC<PageProps> = ({
           property="og:image"
           content={metaThumbnail}
         />
+        <meta
+          property="twitter:card"
+          content="summary_large_image"
+        />
+        <meta
+          property="twitter:title"
+          content={metaTitle}
+        />
+        <meta
+          property="twitter:description"
+          content={metaDescription}
+        />
+        <meta
+          property="twitter:site"
+          content="@zenshop_app"
+        />
+        <meta
+          property="twitter:image"
+          content={metaThumbnail}
+        />
       </Head>
       <header
         className={cx(
