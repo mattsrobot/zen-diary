@@ -24,7 +24,7 @@ export const Page: React.FC<PageProps> = ({
   const metaDescription = description
     ? onlyText(description)
     : siteConfig.siteDescription;
-  const metaThumbnail = thumbnail ? thumbnail : siteConfig.siteThumbnail;
+  const metaThumbnail = thumbnail ? `${siteConfig.siteUrl}${thumbnail}` : siteConfig.siteThumbnail;
   const customTitle = `${metaTitle} | ${siteConfig.siteName}`;
   return (
     <>
@@ -36,7 +36,7 @@ export const Page: React.FC<PageProps> = ({
         <meta name="og:description" content={metaDescription} />
         <meta
           property="og:image"
-          content={`${siteConfig.siteUrl}${metaThumbnail}`}
+          content={metaThumbnail}
         />
       </Head>
       <header
